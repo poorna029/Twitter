@@ -1,0 +1,59 @@
+
+
+### user table information 
+get http://localhost:3000/userd/
+
+### follower table information
+get http://localhost:3000/followerd/
+
+### tweet table information 
+get http://localhost:3000/tweetd/
+
+### reply table information
+get http://localhost:3000/replyd/
+
+### like table information
+get http://localhost:3000/liked/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvZUJpZGVuIiwiaWF0IjoxNjY5MzMzMjI2fQ.EhpVTfpBIoWislBVGppl5Oam01fq2mnWeGtX9O4I5QA
+
+###  ----------------------------------------------------->>>
+### 1 registering new user acc 
+post http://localhost:3000/register/
+Content-Type:application/json 
+
+{
+  "username": "poorna029",
+  "password": "poorna_1996",
+  "name": "Adam Richard",
+  "gender": "male"
+}
+
+### api for login 
+post http://localhost:3000/login/
+Content-Type: application/json 
+
+{
+  "username":"JoeBiden",
+  "password":"biden@123"
+}
+### 3 feeding top 4 tweets to the user who he follows
+
+get http://localhost:3000/user/tweets/feed/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvZUJpZGVuIiwiaWF0IjoxNjY5MzMzMjI2fQ.EhpVTfpBIoWislBVGppl5Oam01fq2mnWeGtX9O4I5QA
+
+####
+get http://localhost:3000/follower_tweet/ 
+
+### 4 names_of_following
+get http://localhost:3000/user/following/ 
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvZUJpZGVuIiwiaWF0IjoxNjY5MzMzMjI2fQ.EhpVTfpBIoWislBVGppl5Oam01fq2mnWeGtX9O4I5QA
+
+
+### 5 names_of_followers
+get http://localhost:3000/user/followers/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvZUJpZGVuIiwiaWF0IjoxNjY5MzMzMjI2fQ.EhpVTfpBIoWislBVGppl5Oam01fq2mnWeGtX9O4I5QA
+
+### 6 
+get http://localhost:3000/tweets/5/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvZUJpZGVuIiwiaWF0IjoxNjY5MzMzMjI2fQ.EhpVTfpBIoWislBVGppl5Oam01fq2mnWeGtX9O4I5QA
+
