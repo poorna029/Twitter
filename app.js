@@ -230,19 +230,42 @@ app.get("/tweets/:tweetId", authenticateFn, async (request, response) => {
   const user_qry = `select user_id from user where username="${username}";`;
   const login_user_obj = await db.get(user_qry);
   const login_user_id = login_user_obj.user_id;
-  const sr = `select distinct tweet , count(like_id) as likes,count(reply) as replies ,
-  tweet.date_time as dateTime  from (tweet join like on tweet.tweet_id=like.tweet_id )
-   join reply on reply.tweet_id=tweet.tweet_id join user on user.user_id= tweet.user_id
-     join follower on follower.following_user_id=user.user_id where ${tweetId}
-      in (select tweet.tweet_id from user join follower on user.user_id = follower.following_user_id where user.user_id=${login_user_id});`;
-  console.log(sr);
-  const re = await db.get(sr);
-  if (re.length === 0) {
-    response.status(400);
-    response.send("Invalid Request");
-  } else {
-    console.log(re);
-    response.send(re);
+  let all_tweets_by_user_qry = `select tweet_id from tweet where user_id=${login_user_id};`;
+  let all_tweets_by_user = await db.all(all_tweets_by_user_qry);
+
+  let all_tweets_lis_by_user = [];
+  for (let e of all_tweets_by_user) {
+    all_tweets_lis_by_user.push(e.tweet_id);
+  }
+  let all_tweets_lis = [];
+  let all_tweets_qry = `select tweet_id from tweet ;`;
+  let all_tweets = await db.all(all_tweets_qry);
+  for (let f of all_tweets) {
+    all_tweets_lis.push(f.tweet_id);
+  }
+  console.log(all_tweets_lis);
+  console.log(parseInt(tweetId));
+  console.log(all_tweets_lis.includes(parseInt(tweetId)));
+  if (all_tweets_lis.includes(parseInt(tweetId))) {
+    //   valid tweet
+    if (all_tweets_lis_by_user.includes(parseInt(tweetId))) {
+      // valid request
+      let tweet_details = [];
+      for (let k of all_tweets_lis_by_user) {
+        const twts_qry = `select tweet,count(like_id) as likes,count(reply) as replies, tweet.date_time as dateTime from (tweet join like on tweet.tweet_id
+                =like.tweet_id) as n join reply on reply.tweet_id=n.tweet_id where tweet.tweet_id=${k};`;
+        const lis = await db.all(twts_qry);
+        console.log(lis[0]);
+        tweet_details.push(lis[0]);
+        // tweet_details.push(lis[0])
+        // console.log(lis);
+      }
+      response.send(tweet_details);
+    } else {
+      //   not tweeted by your following users, so u r not accessible to it
+      response.status(401);
+      response.send("Invalid Request");
+    }
   }
 });
 
@@ -257,22 +280,57 @@ app.get(
     const user_qry = `select user_id from user where username="${username}";`;
     const login_user_obj = await db.get(user_qry);
     const login_user_id = login_user_obj.user_id;
-    const sr = `select distinct user.username from like join user on user.user_id=like.user_id
-   where like.tweet_id = (select tweet_id from like join follower on follower.following_user_id=like.user_id where follower.follower_user_id=${login_user_id} and like.tweet_id=${tweetId}) ;`;
-    // console.log(sr);
-    const re = await db.all(sr);
+    const list_obj_following_user_ids_qry = `select user_id from user join
+    follower on follower.following_user_id = user.user_id 
+    where follower.follower_user_id=${login_user_id};`;
+    const list_obj_following_user_ids = await db.all(
+      list_obj_following_user_ids_qry
+    );
+    // console.log(list_obj_following_user_ids);
     const arr = [];
-    for (let x of re) {
-      arr.push(x.username);
-      //   console.log(x);
+    for (let x of list_obj_following_user_ids) {
+      arr.push(x.user_id);
+      //   console.log(x.user_id);
     }
-    if (re.length === 0) {
-      response.status(400);
-      response.send("Invalid Request");
+    const all_user_following_tweets = [];
+    for (let x of arr) {
+      const tweets_qry = `select tweet_id from tweet where user_id=${x};`;
+      const tweets = await db.all(tweets_qry);
+      //   console.log(tweets);
+      for (let x of tweets) {
+        console.log(x.tweet_id, typeof x.tweet_id);
+        if (all_user_following_tweets.includes(x.tweet_id) === false) {
+          all_user_following_tweets.push(x.tweet_id);
+        }
+      }
+      console.log(all_user_following_tweets.includes(parseInt(tweetId)));
+      // all_user_following_tweets.push(tweets);
+    }
+    if (all_user_following_tweets.includes(parseInt(tweetId))) {
+      // user request is valid
+      const x = `select username from user join like on user.user_id
+       = like.user_id where like.tweet_id=${tweetId};`;
+      let user_names_list = [];
+      const liked_user_names_list = await db.all(x);
+      for (let i of liked_user_names_list) {
+        console.log(i.username);
+        user_names_list.push(i.username);
+      }
+      response.send({ likes: user_names_list });
+
+      console.log({ likes: user_names_list });
     } else {
-      console.log({ likes: arr });
-      response.send({ likes: arr });
+      response.status(401);
+      response.send("Invalid Request");
     }
+    // console.log(arr);
+    // if (re.length === 0) {
+    //   response.status(400);
+    //   response.send("Invalid Request");
+    // } else {
+    //   console.log({ likes: arr });
+    //   response.send({ likes: arr });
+    // }
   }
 );
 
@@ -288,23 +346,39 @@ app.get(
 //   response.send({ likes: arr });
 // });
 
+// ---------------------------------------11-----11-----11----11----11
+
 // delete tweet api
 
 app.delete("/tweets/:tweetId/", authenticateFn, async (request, response) => {
   const { tweetId } = request.params;
   const { username } = request;
+  console.log(username);
   const sel_user_qry = `select user_id from user where username="${username}";`;
   const user_id_s = await db.get(sel_user_qry);
   const user_id_r = user_id_s.user_id;
-  //   console.log(user_id_r);
-  const del_tweet_qry = `delete from tweet where tweet_id
-    =(select tweet_id from tweet where user_id=${user_id_r} and tweet_id=${tweetId});`;
-  console.log(del_tweet_qry);
-  await db.run(del_tweet_qry);
-  if (user_id_r !== undefined) {
+  console.log(user_id_r);
+
+  const user_tweets_qry = `select tweet_id from tweet where user_id=${user_id_r};`;
+  const user_tweets = await db.all(user_tweets_qry);
+  let tweet_ids_of_user = [];
+  for (let id of user_tweets) {
+    // console.log(id.tweet_id);
+    tweet_ids_of_user.push(id.tweet_id);
+  }
+  console.log(tweet_ids_of_user);
+  //   console.log("all_tweets", user_tweets);
+  //   console.log(del_tweet_qry);
+
+  console.log(tweetId, typeof parseInt(tweetId));
+  console.log(tweet_ids_of_user.includes(parseInt(tweetId)));
+  if (tweet_ids_of_user.includes(parseInt(tweetId))) {
+    const del_tweet_qry = `delete from tweet where tweet_id=${tweetId};`;
+    await db.run(del_tweet_qry);
+
     response.send("Tweet Removed");
   } else {
-    response.status(400);
+    response.status(401);
     response.send("Invalid Request");
   }
 });
@@ -333,14 +407,26 @@ app.get("/user/tweets/", authenticateFn, async (request, response) => {
   const sel_qry = `select user_id from user where username="${username}";`;
   const usr_d = await db.get(sel_qry);
   const user_D = usr_d.user_id;
-  console.log(user_D);
-  const twts_qry = `select tweet,count (like_id) as likes,
-   count (reply_id) as replies, tweet.date_time as dateTime from tweet join like on
-   tweet.tweet_id=like.tweet_id join reply on 
-    reply.tweet_id=like.tweet_id where 
-   like.user_id=${user_D} group by tweet.tweet_id;`;
-  const lis = await db.all(twts_qry);
-  console.log(lis);
+  //   console.log(user_D);
+  let all_tweets_by_user_query = `select tweet_id from tweet where user_id=${user_D};`;
+  let all_tweets_by_user = await db.all(all_tweets_by_user_query);
+  //   console.log(all_tweets_by_user);
+  let all_tweets_ids_list = [];
+  for (let x of all_tweets_by_user) {
+    // console.log(x.tweet_id);
+    all_tweets_ids_list.push(x.tweet_id);
+  }
+  let tweet_details = [];
+  for (let k of all_tweets_ids_list) {
+    const twts_qry = `select tweet,count(like_id) as likes,count(reply) as replies, tweet.date_time as dateTime from (tweet join like on tweet.tweet_id
+        =like.tweet_id) as n join reply on reply.tweet_id=n.tweet_id where tweet.tweet_id=${k};`;
+    const lis = await db.all(twts_qry);
+    console.log(lis[0]);
+    tweet_details.push(lis[0]);
+    // tweet_details.push(lis[0])
+    // console.log(lis);
+  }
+  response.send(tweet_details);
 });
 
 // api 8
@@ -353,22 +439,75 @@ app.get(
     const user_qry = `select user_id from user where username="${username}";`;
     const login_user_obj = await db.get(user_qry);
     const login_user_id = login_user_obj.user_id;
-    const sr = `select distinct user.username from like join user on user.user_id=like.user_id
-   where like.tweet_id = (select tweet_id from like join follower on follower.following_user_id=like.user_id where follower.follower_user_id=${login_user_id} and like.tweet_id=${tweetId}) ;`;
-    console.log(sr);
-    const re = await db.all(sr);
+    //     const sr = `select distinct user.username from like join user on user.user_id=like.user_id
+    //    where like.tweet_id = (select tweet_id from like join follower on follower.following_user_id=like.user_id where follower.follower_user_id=${login_user_id} and like.tweet_id=${tweetId}) ;`;
+    const list_of_following_tweet_ids_qry = `select user.user_id from user join follower 
+   on user.user_id =follower.following_user_id where follower.follower_user_id=${login_user_id};`;
+    const list_of_following_tweet_ids = await db.all(
+      list_of_following_tweet_ids_qry
+    );
+    // console.log(list_of_following_users);
+    // console.log(sr);
+    // const re = await db.all(sr);
     let arr = [];
-    for (let x of re) {
-      arr.push(x.username);
-      //   console.log(x);
+    for (let x of list_of_following_tweet_ids) {
+      arr.push(x.user_id);
+      //   console.log(x.user_id);
+    }
+    let tweets_of_following_users = [];
+    for (let a of arr) {
+      const list_of_following_users_tweet_qry = `select tweet_id from tweet where user_id=${a};`;
+      const list_of_following_users_tweet = await db.all(
+        list_of_following_users_tweet_qry
+      );
+      for (let j of list_of_following_users_tweet) {
+        // console.log(j.tweet_id);
+        if (tweets_of_following_users.includes(j.tweet_id) === false) {
+          tweets_of_following_users.push(j.tweet_id);
+        }
+      }
+    }
+    let all_tweets_list = [];
+    const all_tweets_qry = `select tweet_id from tweet;`;
+    const all_tweets = await db.all(all_tweets_qry);
+    for (let q of all_tweets) {
+      console.log(q.tweet_id, typeof q.tweet_id);
+      all_tweets_list.push(q.tweet_id);
     }
 
-    if (re.length === 0) {
-      response.status(400);
+    console.log(tweets_of_following_users);
+    // if (re.length === 0) {
+    //   response.status(400);
+    //   response.send("Invalid Request");
+    // } else {
+    //   console.log({ replies: arr });
+    //   response.send({ replies: arr });
+    // }
+    console.log(all_tweets_list);
+    console.log(tweetId, typeof tweetId);
+    console.log(all_tweets_list.includes(tweetId));
+    let pass = null;
+    if (all_tweets_list.includes(parseInt(tweetId)) === false) {
+      // invalid tweet which is not present in the entire tweets list
+      console.log("tweet not found in database");
+      response.status(401);
       response.send("Invalid Request");
     } else {
-      console.log({ replies: arr });
-      response.send({ replies: arr });
+      if (tweets_of_following_users.includes(parseInt(tweetId)) === false) {
+        // tweet not belongs to the following profiles
+        console.log("tweet is valid but you are not following the user");
+        response.status(401);
+        response.send("Invalid Request");
+      } else {
+        // tweet is authenticated
+        //  name and reply by a specific tweet_id
+        console.log("user is valid and we will update results");
+        const nam_rep_qry = `select name,reply from user join reply on user.user_id
+        = reply.user_id where reply.tweet_id =${tweetId}; `;
+        const nam_rep = await db.all(nam_rep_qry);
+        console.log({ replies: nam_rep });
+        response.send({ replies: nam_rep });
+      }
     }
   }
 );
